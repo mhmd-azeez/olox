@@ -17,18 +17,22 @@ VM :: struct {
     stack_top: int,
 }
 
-vm_init :: proc(chunk: ^Chunk) -> VM {
-    return VM{chunk = chunk, ip = 0, stack_top = 0}
+vm_init :: proc() -> VM {
+    return VM{chunk = nil, ip = 0, stack_top = 0}
 }
 
 vm_free :: proc(vm: ^VM) {
     // Nothing to do yet
+
+    if vm.chunk != nil {
+        chunk_free(vm.chunk)
+    }
 }
 
-vm_interpret :: proc(vm: ^VM, chunk: ^Chunk) -> InterpretResult {
-    vm.chunk = chunk
-    vm.ip = 0
-    return vm_run(vm)
+vm_interpret :: proc(vm: ^VM, source: string) -> InterpretResult {
+    compile(source)
+
+    return InterpretResult.Ok
 }
 
 vm_run :: proc(vm: ^VM) -> InterpretResult {

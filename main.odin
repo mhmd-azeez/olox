@@ -1,42 +1,67 @@
 package olox
 
 import "core:fmt"
+import "core:os"
+import "core:strings"
 
 DEBUG_TRACE_EXECUTION :: #config(DEBUG_TRACE_EXECUTION, false)
 
 main :: proc() {
-    chunk := chunk_init()
-    defer chunk_free(&chunk)
+    if len(os.args) == 1 {
+        repl()
+    } else if len(os.args) == 2 {
+        run_file(os.args[1])
+    } else {
+        fmt.printfln("Usage: olox [path]")
+        os.exit(64)
+    }
+}
 
-    constant, _ := chunk_add_constant(&chunk, 1.2)
-    chunk_write_opcode(&chunk, OpCode.Constant, 123)
-    chunk_write(&chunk, constant, 123)
+run_file :: proc(path: string) {
+    source, err := os.read_entire_file_from_filename_or_err(path)
+    if err != nil {
+        fmt.printfln("Could not read file '%s': %v", path, err)
+        os.exit(74)
+    }
 
-    constant2, _ := chunk_add_constant(&chunk, 3.4)
-    chunk_write_opcode(&chunk, OpCode.Constant, 123)
-    chunk_write(&chunk, constant2, 123)
+    vm := vm_init()
+    defer vm_free(&vm)
+    result := vm_interpret(&vm, string(source))
 
-    chunk_write_opcode(&chunk, OpCode.Add, 123)
+    if result == InterpretResult.CompileError {
+        os.exit(65)
+    }
+    if result == InterpretResult.RuntimeError {
+        os.exit(70)
+    }
+}
 
-    constant3, _ := chunk_add_constant(&chunk, 5.6)
-    chunk_write_opcode(&chunk, OpCode.Constant, 123)
-    chunk_write(&chunk, constant3, 123)
-
-    chunk_write_opcode(&chunk, OpCode.Divide, 123)
-
-    chunk_write_opcode(&chunk, OpCode.Negate, 123)
-
-    chunk_write_opcode(&chunk, OpCode.Return, 123)
-
-    chunk_disassemble(&chunk, "test")
-
-    fmt.println("=== Run ===")
-
-    vm := vm_init(&chunk)
+repl :: proc() {
+    vm := vm_init()
     defer vm_free(&vm)
 
-    result := vm_interpret(&vm, &chunk)
+    buf: [1024]u8
 
-    fmt.println("=== Result ===")
-    fmt.println(result)
+    for {
+        fmt.print("lox> ")
+        n, err := os.read(os.stdin, buf[:])
+        if err != nil {
+            fmt.printfln("Could not read line: %v", err)
+            os.exit(74)
+        }
+
+        line, ok := strings.substring_to(string(buf[:]), n-1)
+        if !ok {
+            fmt.printfln("Line too long")
+            os.exit(74)
+        }
+
+        result := vm_interpret(&vm, line)
+        if result == InterpretResult.CompileError {
+            os.exit(65)
+        }
+        if result == InterpretResult.RuntimeError {
+            os.exit(70)
+        }
+    }
 }
