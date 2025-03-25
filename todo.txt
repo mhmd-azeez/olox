@@ -1,0 +1,2 @@
+- [ ] research associativity: left-associative vs right-associative
+- [ ] do more research on Pratt Parser
