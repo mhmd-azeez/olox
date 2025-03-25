@@ -14,7 +14,7 @@ OpCode :: enum {
 
 Value :: f64
 
-Error :: enum {
+RuntimeError :: enum {
 	None,
 	TooManyConstants,
 }
@@ -45,14 +45,14 @@ chunk_write :: proc(chunk: ^Chunk, byte: u8, line: int) {
 	append(&chunk.lines, line)
 }
 
-chunk_add_constant :: proc(chunk: ^Chunk, value: Value) -> (u8, Error) {
+chunk_add_constant :: proc(chunk: ^Chunk, value: Value) -> (u8, RuntimeError) {
 	append(&chunk.constants, value)
 
 	if len(chunk.constants) > 256 {
-		return 0, Error.TooManyConstants
+		return 0, RuntimeError.TooManyConstants
 	}
 
-	return u8(len(chunk.constants) - 1), Error.None
+	return u8(len(chunk.constants) - 1), RuntimeError.None
 }
 
 print_value :: proc(value: Value) {

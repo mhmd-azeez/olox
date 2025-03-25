@@ -1,6 +1,7 @@
 package olox
 
 import "core:fmt"
+import "core:strconv"
 
 CompileError :: enum {
     None,
@@ -24,6 +25,20 @@ Parser :: struct {
     panic_mode: bool,
 }
 
+Precedence :: enum {
+    None,
+    Assignment,  // =
+    Or,          // or
+    And,         // and
+    Equality,    // == !=
+    Comparison,  // < > <= >=
+    Term,        // + -
+    Factor,      // * /
+    Unary,       // ! -
+    Call,        // . ()
+    Primary,
+}
+
 compile :: proc(source: string) -> ^Chunk {
     compiler := Compiler{
         scanner =  scanner_init(source),
@@ -33,7 +48,7 @@ compile :: proc(source: string) -> ^Chunk {
     }}
 
     compiler_advance(&compiler)
-    //compiler_expression(&compiler)
+    compiler_expression(&compiler)
     compiler_consume(&compiler, TokenType.EOF, "Expect end of expression.")
     compiler_end(&compiler)
 
@@ -52,6 +67,60 @@ compiler_get_current_chunk :: proc(compiler: ^Compiler) -> ^Chunk {
 
 compiler_end :: proc(compiler: ^Compiler) {
     compiler_emit_return(compiler)
+}
+
+compiler_expression :: proc(compiler: ^Compiler) {
+    compiler_parse_precendence(compiler, Precedence.Assignment)
+}
+
+compiler_grouping :: proc(compiler: ^Compiler) {
+    // we assume the initial '(' has been consumed
+    compiler_expression(compiler)
+    compiler_consume(compiler, TokenType.RIGHT_PAREN, "Expect ')' after expression.")
+}
+
+compiler_number :: proc(compiler: ^Compiler) {
+    value, ok := strconv.parse_f64(compiler.parser.previous.lexeme)
+    if !ok {
+        compiler_error_at_current(&compiler.parser, "Invalid number.")
+    }
+
+    compiler_emit_constant(compiler, value)
+}
+
+compiler_unary :: proc(compiler: ^Compiler) {
+    operatorType := compiler.parser.previous.type
+
+    // Compile the operand.
+    compiler_parse_precendence(compiler, Precedence.Unary)
+
+    // This is unnecessary right now, but this will make more sense
+    // when we use this same function to compile the ! operator
+    #partial switch operatorType {
+    case TokenType.MINUS:
+        compiler_emit_opcode(compiler, OpCode.Negate)
+    case:
+        return // Unreachable.
+    }
+}
+
+compiler_parse_precendence :: proc(compiler: ^Compiler, precedence: Precedence) {
+    
+}
+
+compiler_emit_constant :: proc(compiler: ^Compiler, value: Value) {
+    idx := compiler_make_constant(compiler, value)
+    compiler_emit_opcode_with_operand(compiler, OpCode.Constant, idx)
+}
+
+compiler_make_constant :: proc(compiler: ^Compiler, value: Value) -> byte {
+    const, err := chunk_add_constant(compiler_get_current_chunk(compiler), value)
+    if err != RuntimeError.None {
+        compiler_error_at_current(&compiler.parser, "Too many constants in one chunk.")
+        return 0
+    }
+
+    return const
 }
 
 compiler_advance :: proc(compiler: ^Compiler) {
