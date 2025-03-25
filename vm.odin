@@ -30,7 +30,7 @@ vm_free :: proc(vm: ^VM) {
 }
 
 vm_interpret :: proc(vm: ^VM, source: string) -> InterpretResult {
-    chunk := compile(source)
+    chunk := compile(source, context.allocator)
     if chunk == nil {
         return InterpretResult.CompileError
     }
@@ -43,6 +43,11 @@ vm_interpret :: proc(vm: ^VM, source: string) -> InterpretResult {
 }
 
 vm_run :: proc(vm: ^VM) -> InterpretResult {
+
+    when DEBUG_TRACE_EXECUTION {
+        fmt.println("== running ==")
+    }
+
     for {
         instruction := OpCode(vm_read_byte(vm))
 
@@ -86,7 +91,9 @@ vm_run :: proc(vm: ^VM) -> InterpretResult {
             vm_push(vm, -vm_pop(vm))
         }
         case OpCode.Return: {
-            vm_pop(vm)
+            v := vm_pop(vm)
+            print_value(v)
+            fmt.println()
             return InterpretResult.Ok
         }
         }

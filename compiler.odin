@@ -3,6 +3,7 @@ package olox
 
 import "core:fmt"
 import "core:strconv"
+import "core:mem"
 
 CompileError :: enum {
 	None,
@@ -92,16 +93,17 @@ parse_rules := map[TokenType]ParseRule {
 	TokenType.EOF           = {nil, nil, Precedence.None},
 }
 
-compile :: proc(source: string) -> ^Chunk {
+compile :: proc(source: string, allocator: mem.Allocator = context.allocator) -> ^Chunk {
 	when DEBUG_VERBOSE {
 		fmt.println("#compile starting to compile stuff")
 	}
 
-	c := chunk_init()
+	c := new(Chunk, allocator)
+	chunk_init(c, allocator)
 	compiler := Compiler {
 		scanner = scanner_init(source),
 		parser = Parser{had_error = false, panic_mode = false},
-		chunk = &c,
+		chunk = c,
 	}
 
 	compiler_advance(&compiler)

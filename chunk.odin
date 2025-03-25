@@ -1,6 +1,7 @@
 package olox
 
 import "core:fmt"
+import "core:mem"
 
 OpCode :: enum {
 	Constant,
@@ -25,8 +26,10 @@ Chunk :: struct {
 	lines:     [dynamic]int,
 }
 
-chunk_init :: proc() -> Chunk {
-	return Chunk{}
+chunk_init :: proc(chunk: ^Chunk, allocator: mem.Allocator = context.allocator) {
+	chunk.code = make([dynamic]u8, 0, 8, allocator)
+	chunk.constants = make([dynamic]Value, 0, 8, allocator)
+	chunk.lines = make([dynamic]int, 0, 8, allocator)
 }
 
 chunk_free :: proc(chunk: ^Chunk) {
