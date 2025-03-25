@@ -30,9 +30,16 @@ vm_free :: proc(vm: ^VM) {
 }
 
 vm_interpret :: proc(vm: ^VM, source: string) -> InterpretResult {
-    compile(source)
+    chunk := compile(source)
+    if chunk == nil {
+        return InterpretResult.CompileError
+    }
+    defer chunk_free(chunk)
 
-    return InterpretResult.Ok
+    vm.chunk = chunk
+    vm.ip = 0
+
+    return vm_run(vm)
 }
 
 vm_run :: proc(vm: ^VM) -> InterpretResult {
