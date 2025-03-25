@@ -2,8 +2,8 @@
 package olox
 
 import "core:fmt"
-import "core:strconv"
 import "core:mem"
+import "core:strconv"
 
 CompileError :: enum {
 	None,
@@ -66,30 +66,30 @@ parse_rules := map[TokenType]ParseRule {
 	TokenType.SLASH         = {nil, compiler_binary, Precedence.Factor},
 	TokenType.STAR          = {nil, compiler_binary, Precedence.Factor},
 	TokenType.BANG          = {compiler_unary, nil, Precedence.None},
-	TokenType.BANG_EQUAL    = {nil, nil, Precedence.Equality},
-	TokenType.EQUAL         = {nil, nil, Precedence.None},
-	TokenType.EQUAL_EQUAL   = {nil, nil, Precedence.Equality},
-	TokenType.GREATER       = {nil, nil, Precedence.Comparison},
-	TokenType.GREATER_EQUAL = {nil, nil, Precedence.Comparison},
-	TokenType.LESS          = {nil, nil, Precedence.Comparison},
-	TokenType.LESS_EQUAL    = {nil, nil, Precedence.Comparison},
+	TokenType.BANG_EQUAL    = {nil, compiler_binary, Precedence.Equality},
+	TokenType.EQUAL         = {nil, compiler_binary, Precedence.None},
+	TokenType.EQUAL_EQUAL   = {nil, compiler_binary, Precedence.Equality},
+	TokenType.GREATER       = {nil, compiler_binary, Precedence.Comparison},
+	TokenType.GREATER_EQUAL = {nil, compiler_binary, Precedence.Comparison},
+	TokenType.LESS          = {nil, compiler_binary, Precedence.Comparison},
+	TokenType.LESS_EQUAL    = {nil, compiler_binary, Precedence.Comparison},
 	TokenType.IDENTIFIER    = {nil, nil, Precedence.None},
 	TokenType.STRING        = {nil, nil, Precedence.None},
 	TokenType.NUMBER        = {compiler_number, nil, Precedence.None},
 	TokenType.AND           = {nil, nil, Precedence.None},
 	TokenType.CLASS         = {nil, nil, Precedence.None},
 	TokenType.ELSE          = {nil, nil, Precedence.None},
-	TokenType.FALSE         = {nil, nil, Precedence.None},
 	TokenType.FUN           = {nil, nil, Precedence.None},
 	TokenType.FOR           = {nil, nil, Precedence.None},
 	TokenType.IF            = {nil, nil, Precedence.None},
-	TokenType.NIL           = {nil, nil, Precedence.None},
 	TokenType.OR            = {nil, nil, Precedence.None},
 	TokenType.PRINT         = {nil, nil, Precedence.None},
 	TokenType.RETURN        = {nil, nil, Precedence.None},
-	TokenType.TRUE          = {nil, nil, Precedence.None},
 	TokenType.VAR           = {nil, nil, Precedence.None},
 	TokenType.WHILE         = {nil, nil, Precedence.None},
+	TokenType.NIL           = {compiler_literal, nil, Precedence.None},
+	TokenType.TRUE          = {compiler_literal, nil, Precedence.None},
+	TokenType.FALSE         = {compiler_literal, nil, Precedence.None},
 	TokenType.EOF           = {nil, nil, Precedence.None},
 }
 
@@ -118,7 +118,7 @@ compile :: proc(source: string, allocator: mem.Allocator = context.allocator) ->
 	when DEBUG_VERBOSE {
 		fmt.println("compiler ended successfuly!")
 	}
-	
+
 	return compiler.chunk
 }
 
@@ -151,6 +151,31 @@ compiler_binary :: proc(compiler: ^Compiler) {
 		compiler_emit_opcode(compiler, OpCode.Multiply)
 	case TokenType.SLASH:
 		compiler_emit_opcode(compiler, OpCode.Divide)
+	case TokenType.GREATER:
+		compiler_emit_opcode(compiler, OpCode.Greater)
+	case TokenType.GREATER_EQUAL:
+		compiler_emit_opcodes(compiler, OpCode.Less, OpCode.Not)
+	case TokenType.LESS:
+		compiler_emit_opcode(compiler, OpCode.Less)
+	case TokenType.LESS_EQUAL:
+		compiler_emit_opcodes(compiler, OpCode.Greater, OpCode.Not)
+	case TokenType.BANG_EQUAL:
+		compiler_emit_opcodes(compiler, OpCode.Equal, OpCode.Not)
+	case TokenType.EQUAL_EQUAL:
+		compiler_emit_opcode(compiler, OpCode.Equal)
+	case:
+		return // Unreachable.
+	}
+}
+
+compiler_literal :: proc(compiler: ^Compiler) {
+	#partial switch compiler.parser.previous.type {
+	case TokenType.FALSE:
+		compiler_emit_opcode(compiler, OpCode.False)
+	case TokenType.NIL:
+		compiler_emit_opcode(compiler, OpCode.Nil)
+	case TokenType.TRUE:
+		compiler_emit_opcode(compiler, OpCode.True)
 	case:
 		return // Unreachable.
 	}
@@ -190,6 +215,8 @@ compiler_unary :: proc(compiler: ^Compiler) {
 	#partial switch operatorType {
 	case TokenType.MINUS:
 		compiler_emit_opcode(compiler, OpCode.Negate)
+	case TokenType.BANG:
+		compiler_emit_opcode(compiler, OpCode.Not)
 	case:
 		return // Unreachable.
 	}
@@ -278,6 +305,11 @@ compiler_consume :: proc(compiler: ^Compiler, tokenType: TokenType, message: str
 compiler_emit_opcode_with_operand :: proc(compiler: ^Compiler, opcode: OpCode, operand: byte) {
 	compiler_emit_opcode(compiler, opcode)
 	compiler_emit_byte(compiler, operand)
+}
+
+compiler_emit_opcodes :: proc(compiler: ^Compiler, opcode1 : OpCode, opcode2: OpCode) {
+	compiler_emit_opcode(compiler, opcode1)
+	compiler_emit_opcode(compiler, opcode2)
 }
 
 compiler_emit_opcode :: proc(compiler: ^Compiler, opcode: OpCode) {

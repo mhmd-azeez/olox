@@ -5,19 +5,33 @@ import "core:mem"
 
 OpCode :: enum {
 	Constant,
+	True,
+	False,
+	Nil,
 	Add,
 	Subtract,
 	Multiply,
 	Divide,
+	Not,
 	Negate,
+	Greater,
+	Less,
+	Equal,
 	Return,
 }
 
-Value :: f64
+Nil :: struct {}
+
+Value :: union {
+	f64,
+	bool,
+	Nil,
+}
 
 RuntimeError :: enum {
 	None,
 	TooManyConstants,
+	OperandMustBeANumber,
 }
 
 Chunk :: struct {
@@ -59,15 +73,15 @@ chunk_add_constant :: proc(chunk: ^Chunk, value: Value) -> (u8, RuntimeError) {
 }
 
 print_value :: proc(value: Value) {
-	fmt.printf("%f", value)
+	fmt.printf("%v", value)
 }
 
 chunk_disassemble :: proc(chunk: ^Chunk, name: string) {
-    fmt.printf("== %s ==\n", name)
+	fmt.printf("== %s ==\n", name)
 
-    for offset := 0; offset < len(chunk.code); {
-        offset = disassemble_instruction(chunk, offset)
-    }
+	for offset := 0; offset < len(chunk.code); {
+		offset = disassemble_instruction(chunk, offset)
+	}
 }
 
 disassemble_instruction :: proc(chunk: ^Chunk, offset: int) -> int {
@@ -97,6 +111,20 @@ disassemble_instruction :: proc(chunk: ^Chunk, offset: int) -> int {
 		return disassemble_simple_instruction("OP_NEGATE", offset)
 	case OpCode.Return:
 		return disassemble_simple_instruction("OP_RETURN", offset)
+	case OpCode.True:
+		return disassemble_simple_instruction("OP_TRUE", offset)
+	case OpCode.False:
+		return disassemble_simple_instruction("OP_FALSE", offset)
+	case OpCode.Nil:
+		return disassemble_simple_instruction("OP_NIL", offset)
+	case OpCode.Not:
+		return disassemble_simple_instruction("OP_NOT", offset)
+	case OpCode.Greater:
+		return disassemble_simple_instruction("OP_GREATER", offset)
+	case OpCode.Less:
+		return disassemble_simple_instruction("OP_LESS", offset)
+	case OpCode.Equal:
+		return disassemble_simple_instruction("OP_EQUAL", offset)
 	case:
 		fmt.printf("Unknown opcode %d\n", opcode)
 		return offset + 1
