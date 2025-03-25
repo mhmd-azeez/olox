@@ -5,6 +5,8 @@ import "core:os"
 import "core:strings"
 
 DEBUG_TRACE_EXECUTION :: #config(DEBUG_TRACE_EXECUTION, false)
+DEBUG_PRINT_CODE :: #config(DEBUG_PRINT_CODE, false)
+DEBUG_VERBOSE :: #config(DEBUG_VERBOSE, false)
 
 main :: proc() {
     if len(os.args) == 1 {

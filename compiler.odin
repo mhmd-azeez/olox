@@ -41,7 +41,7 @@ Precedence :: enum {
 }
 
 precendence_plus_one :: proc(p: Precedence) -> Precedence {
-    return Precedence(u8(p) + 1)
+	return Precedence(u8(p) + 1)
 }
 
 ParseFn :: proc(compiler: ^Compiler)
@@ -92,11 +92,16 @@ parse_rules := map[TokenType]ParseRule {
 	TokenType.EOF           = {nil, nil, Precedence.None},
 }
 
-
 compile :: proc(source: string) -> ^Chunk {
+	when DEBUG_VERBOSE {
+		fmt.println("#compile starting to compile stuff")
+	}
+
+	c := chunk_init()
 	compiler := Compiler {
 		scanner = scanner_init(source),
 		parser = Parser{had_error = false, panic_mode = false},
+		chunk = &c,
 	}
 
 	compiler_advance(&compiler)
@@ -108,6 +113,10 @@ compile :: proc(source: string) -> ^Chunk {
 		return nil
 	}
 
+	when DEBUG_VERBOSE {
+		fmt.println("compiler ended successfuly!")
+	}
+	
 	return compiler.chunk
 }
 
@@ -119,6 +128,11 @@ compiler_get_current_chunk :: proc(compiler: ^Compiler) -> ^Chunk {
 
 compiler_end :: proc(compiler: ^Compiler) {
 	compiler_emit_return(compiler)
+	when DEBUG_PRINT_CODE {
+		if !compiler.parser.had_error {
+			chunk_disassemble(compiler_get_current_chunk(compiler), "code")
+		}
+	}
 }
 
 compiler_binary :: proc(compiler: ^Compiler) {
@@ -141,6 +155,10 @@ compiler_binary :: proc(compiler: ^Compiler) {
 }
 
 compiler_expression :: proc(compiler: ^Compiler) {
+	when DEBUG_VERBOSE {
+		fmt.println("#expression")
+	}
+
 	compiler_parse_precendence(compiler, Precedence.Assignment)
 }
 
@@ -176,7 +194,36 @@ compiler_unary :: proc(compiler: ^Compiler) {
 }
 
 compiler_parse_precendence :: proc(compiler: ^Compiler, precedence: Precedence) {
+	when DEBUG_VERBOSE {
+		fmt.printfln("#compiler_parse_precendence parsing precedence %v", precedence)
+	}
 
+	compiler_advance(compiler)
+	prefixRule := parse_rules[compiler.parser.previous.type].prefix
+	if prefixRule == nil {
+		compiler_error_at_current(&compiler.parser, "Expect expression.")
+		return
+	}
+
+	prefixRule(compiler)
+
+	for precedence <= parse_rules[compiler.parser.current.type].precedence {
+
+		when DEBUG_VERBOSE {
+			lte := precedence <= parse_rules[compiler.parser.current.type].precedence
+			fmt.printfln(
+				"#compiler_parse_precendence precedence %v <= %v: %v",
+				precedence,
+				parse_rules[compiler.parser.current.type].precedence,
+				lte,
+			)
+		}
+
+
+		compiler_advance(compiler)
+		infixRule := parse_rules[compiler.parser.previous.type].infix
+		infixRule(compiler)
+	}
 }
 
 compiler_emit_constant :: proc(compiler: ^Compiler, value: Value) {
@@ -195,10 +242,19 @@ compiler_make_constant :: proc(compiler: ^Compiler, value: Value) -> byte {
 }
 
 compiler_advance :: proc(compiler: ^Compiler) {
+	when DEBUG_VERBOSE {
+		fmt.println("#compiler_advance")
+	}
+
 	compiler.parser.previous = compiler.parser.current
 
 	for {
 		compiler.parser.current = scanner_scan_token(&compiler.scanner)
+
+		when DEBUG_VERBOSE {
+			fmt.printfln("#compiler_advance got token: %v", compiler.parser.current.type)
+		}
+
 		if compiler.parser.current.type != TokenType.Error {
 			break
 		}
