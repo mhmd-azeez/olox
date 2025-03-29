@@ -10,9 +10,9 @@ CompileError :: enum {
 }
 
 Compiler :: struct {
-	chunk:   ^Chunk,
-	scanner: Scanner,
-	parser:  Parser,
+	chunk:     ^Chunk,
+	scanner:   Scanner,
+	parser:    Parser,
 	allocator: mem.Allocator,
 }
 
@@ -75,7 +75,7 @@ parse_rules := map[TokenType]ParseRule {
 	TokenType.LESS          = {nil, compiler_binary, Precedence.Comparison},
 	TokenType.LESS_EQUAL    = {nil, compiler_binary, Precedence.Comparison},
 	TokenType.IDENTIFIER    = {nil, nil, Precedence.None},
-	TokenType.STRING        = {nil, compiler_string, Precedence.None},
+	TokenType.STRING        = {compiler_string, nil, Precedence.None},
 	TokenType.NUMBER        = {compiler_number, nil, Precedence.None},
 	TokenType.AND           = {nil, nil, Precedence.None},
 	TokenType.CLASS         = {nil, nil, Precedence.None},
@@ -207,7 +207,12 @@ compiler_number :: proc(compiler: ^Compiler) {
 }
 
 compiler_string :: proc(compiler: ^Compiler) {
-	compiler_emit_constant(compiler, compiler.parser.previous.literal)
+	end := len(compiler.parser.previous.lexeme) - 1
+
+	// trim the double quotes
+	// note(mo): how does memory mangement work here?
+	literal := compiler.parser.previous.lexeme[1:end] 
+	compiler_emit_constant(compiler, literal)
 }
 
 compiler_unary :: proc(compiler: ^Compiler) {
@@ -313,7 +318,7 @@ compiler_emit_opcode_with_operand :: proc(compiler: ^Compiler, opcode: OpCode, o
 	compiler_emit_byte(compiler, operand)
 }
 
-compiler_emit_opcodes :: proc(compiler: ^Compiler, opcode1 : OpCode, opcode2: OpCode) {
+compiler_emit_opcodes :: proc(compiler: ^Compiler, opcode1: OpCode, opcode2: OpCode) {
 	compiler_emit_opcode(compiler, opcode1)
 	compiler_emit_opcode(compiler, opcode2)
 }

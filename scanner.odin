@@ -1,5 +1,7 @@
 package olox
 
+import "core:fmt"
+
 Scanner :: struct {
 	source:  string,
 	start:   int,
@@ -181,16 +183,27 @@ scanner_is_at_end :: proc(scanner: ^Scanner) -> bool {
 }
 
 scanner_make_token :: proc(scanner: ^Scanner, token_type: TokenType) -> Token {
-	return Token {
+	t := Token {
 		type = token_type,
 		lexeme = scanner.source[scanner.start:scanner.current],
-		literal = "",
 		line = scanner.line,
 	}
+
+	when DEBUG_VERBOSE {
+		fmt.printfln("Token: %v", t)
+	}
+
+	return t
 }
 
 scanner_error_token :: proc(scanner: ^Scanner, message: string) -> Token {
-	return Token{type = TokenType.Error, lexeme = message, literal = "", line = scanner.line}
+	t := Token{type = TokenType.Error, lexeme = message, line = scanner.line}
+
+	when DEBUG_VERBOSE {
+		fmt.printfln("Error token: %v", t)
+	}
+
+	return t
 }
 
 is_digit :: proc(c: byte) -> bool {
@@ -269,7 +282,6 @@ scanner_identifier_type :: proc(scanner: ^Scanner) -> TokenType {
 Token :: struct {
 	type:    TokenType,
 	lexeme:  string,
-	literal: string,
 	line:    int,
 }
 

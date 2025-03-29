@@ -27,10 +27,6 @@ vm_init :: proc() -> VM {
 vm_free :: proc(vm: ^VM) {
 	// Nothing to do yet
 
-	if vm.chunk != nil {
-		chunk_free(vm.chunk)
-	}
-
 	// TODO: free all objects in the objects array
 }
 
@@ -90,13 +86,10 @@ vm_run :: proc(vm: ^VM) -> InterpretResult {
 				case string:
 					{
 						if s, ok := v2.(string); ok {
-							result, err := strings.concatenate([]string{v1.(string), s})
-							if err != nil {
-								fmt.printf("Error: %v\n", err)
-								return vm_runtime_error(vm, RuntimeError.StringConcatenationFailed)
-							}
-
-							vm_push(vm, result)
+							b := strings.builder_make()
+							fmt.sbprintf(&b, "%s%s", s, v1)
+							fmt.printfln("%v", strings.to_string(b))
+							vm_push(vm, strings.to_string(b))
 						} else {
 							return vm_runtime_error(vm, RuntimeError.OperandMustBeAString)
 						}
