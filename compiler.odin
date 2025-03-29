@@ -13,6 +13,7 @@ Compiler :: struct {
 	chunk:   ^Chunk,
 	scanner: Scanner,
 	parser:  Parser,
+	allocator: mem.Allocator,
 }
 
 Parser :: struct {
@@ -74,7 +75,7 @@ parse_rules := map[TokenType]ParseRule {
 	TokenType.LESS          = {nil, compiler_binary, Precedence.Comparison},
 	TokenType.LESS_EQUAL    = {nil, compiler_binary, Precedence.Comparison},
 	TokenType.IDENTIFIER    = {nil, nil, Precedence.None},
-	TokenType.STRING        = {nil, nil, Precedence.None},
+	TokenType.STRING        = {nil, compiler_string, Precedence.None},
 	TokenType.NUMBER        = {compiler_number, nil, Precedence.None},
 	TokenType.AND           = {nil, nil, Precedence.None},
 	TokenType.CLASS         = {nil, nil, Precedence.None},
@@ -104,6 +105,7 @@ compile :: proc(source: string, allocator: mem.Allocator = context.allocator) ->
 		scanner = scanner_init(source),
 		parser = Parser{had_error = false, panic_mode = false},
 		chunk = c,
+		allocator = allocator,
 	}
 
 	compiler_advance(&compiler)
@@ -202,6 +204,10 @@ compiler_number :: proc(compiler: ^Compiler) {
 	}
 
 	compiler_emit_constant(compiler, value)
+}
+
+compiler_string :: proc(compiler: ^Compiler) {
+	compiler_emit_constant(compiler, compiler.parser.previous.literal)
 }
 
 compiler_unary :: proc(compiler: ^Compiler) {

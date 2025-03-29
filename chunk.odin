@@ -25,6 +25,7 @@ Nil :: struct {}
 Value :: union {
 	f64,
 	bool,
+	string, // this feels like cheating tbh, odin makes it too easy
 	Nil,
 }
 
@@ -32,6 +33,8 @@ RuntimeError :: enum {
 	None,
 	TooManyConstants,
 	OperandMustBeANumber,
+	OperandMustBeAString,
+	StringConcatenationFailed,
 }
 
 Chunk :: struct {

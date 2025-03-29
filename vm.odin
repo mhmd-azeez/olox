@@ -17,10 +17,11 @@ VM :: struct {
 	ip:        int,
 	stack:     [STACK_MAX]Value,
 	stack_top: int,
+	objects: [dynamic]Value,
 }
 
 vm_init :: proc() -> VM {
-	return VM{chunk = nil, ip = 0, stack_top = 0}
+	return VM{chunk = nil, ip = 0, stack_top = 0, objects = make([dynamic]Value, 0, 8, context.allocator)}
 }
 
 vm_free :: proc(vm: ^VM) {
@@ -29,6 +30,8 @@ vm_free :: proc(vm: ^VM) {
 	if vm.chunk != nil {
 		chunk_free(vm.chunk)
 	}
+
+	// TODO: free all objects in the objects array
 }
 
 vm_interpret :: proc(vm: ^VM, source: string) -> InterpretResult {
@@ -72,17 +75,37 @@ vm_run :: proc(vm: ^VM) -> InterpretResult {
 			}
 		case OpCode.Add:
 			{
-				b, ok := vm_pop(vm).(f64)
-				if !ok {
-					return vm_runtime_error(vm, RuntimeError.OperandMustBeANumber)
-				}
+				v1 := vm_pop(vm)
+				v2 := vm_pop(vm)
 
-				a, okk := vm_pop(vm).(f64)
-				if !okk {
-					return vm_runtime_error(vm, RuntimeError.OperandMustBeANumber)
-				}
+				#partial switch typ in v1 {
+				case f64:
+					{
+						if n, ok := v2.(f64); ok {
+							vm_push(vm, v1.(f64) + n)
+						} else {
+							return vm_runtime_error(vm, RuntimeError.OperandMustBeANumber)
+						}
+					}
+				case string:
+					{
+						if s, ok := v2.(string); ok {
+							result, err := strings.concatenate([]string{v1.(string), s})
+							if err != nil {
+								fmt.printf("Error: %v\n", err)
+								return vm_runtime_error(vm, RuntimeError.StringConcatenationFailed)
+							}
 
-				vm_push(vm, a + b)
+							vm_push(vm, result)
+						} else {
+							return vm_runtime_error(vm, RuntimeError.OperandMustBeAString)
+						}
+					}
+				case:
+					{
+						return vm_runtime_error(vm, RuntimeError.OperandMustBeANumber)
+					}
+				}
 			}
 		case OpCode.Subtract:
 			{
