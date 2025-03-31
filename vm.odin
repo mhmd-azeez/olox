@@ -17,17 +17,28 @@ VM :: struct {
 	ip:        int,
 	stack:     [STACK_MAX]Value,
 	stack_top: int,
-	objects: [dynamic]Value,
+	objects:   [dynamic]Value,
 }
 
 vm_init :: proc() -> VM {
-	return VM{chunk = nil, ip = 0, stack_top = 0, objects = make([dynamic]Value, 0, 8, context.allocator)}
+	return VM {
+		chunk = nil,
+		ip = 0,
+		stack_top = 0,
+		objects = make([dynamic]Value, 0, 8, context.allocator),
+	}
 }
 
 vm_free :: proc(vm: ^VM) {
 	// Nothing to do yet
 
-	// TODO: free all objects in the objects array
+	// note(mo): once we have the garbage collector, we probably shouldn't do this?
+	delete(vm.objects)
+	// for v in vm.stack {
+	// 	if str, ok := v.(string); ok {
+	// 		delete(str)
+	// 	}
+	// }
 }
 
 vm_interpret :: proc(vm: ^VM, source: string) -> InterpretResult {
@@ -86,10 +97,9 @@ vm_run :: proc(vm: ^VM) -> InterpretResult {
 				case string:
 					{
 						if s, ok := v2.(string); ok {
-							b := strings.builder_make()
-							fmt.sbprintf(&b, "%s%s", s, v1)
-							fmt.printfln("%v", strings.to_string(b))
-							vm_push(vm, strings.to_string(b))
+							s1, _ := v1.(string)
+							str := strings.concatenate({s, s1})
+							vm_push(vm, str)
 						} else {
 							return vm_runtime_error(vm, RuntimeError.OperandMustBeAString)
 						}
@@ -207,6 +217,7 @@ vm_run :: proc(vm: ^VM) -> InterpretResult {
 				v := vm_pop(vm)
 				print_value(v)
 				fmt.println()
+				value_destroy(&v)
 				return InterpretResult.Ok
 			}
 		}

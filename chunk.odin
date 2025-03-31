@@ -29,6 +29,12 @@ Value :: union {
 	Nil,
 }
 
+value_destroy :: proc(v: ^Value, allocator := context.allocator) {
+	if s, ok := v.(string); ok {
+		delete(s, allocator)
+	}
+}
+
 RuntimeError :: enum {
 	None,
 	TooManyConstants,
@@ -53,6 +59,8 @@ chunk_free :: proc(chunk: ^Chunk) {
 	delete(chunk.code)
 	delete(chunk.constants)
 	delete(chunk.lines)
+
+	free(chunk)
 }
 
 chunk_write_opcode :: proc(chunk: ^Chunk, opcode: OpCode, line: int) {
