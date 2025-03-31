@@ -3,7 +3,6 @@ package olox
 import "core:fmt"
 import "core:strings"
 
-
 InterpretResult :: enum {
 	Ok,
 	CompileError,
@@ -228,13 +227,26 @@ vm_runtime_error :: proc(vm: ^VM, err: RuntimeError) -> InterpretResult {
 	instruction := vm.ip - 1
 	line := vm.chunk.lines[instruction]
 
-	builder := strings.builder_make()
+	msg := enum_value_to_string(err)
 
-	msg, _ := fmt.enum_value_to_string(err)
+	fmt.printfln("Runtime error: %s. [line %d in script]", msg, line)
 
-	fmt.sbprintfln(&builder, "Runtime error: %s. [line %d in script]", msg, line)
+	delete(msg)
 
 	return InterpretResult.RuntimeError
+}
+
+enum_value_to_string :: proc(val: any) -> string {
+	str, _ := fmt.enum_value_to_string(val)
+
+	snake := strings.to_snake_case(str)
+
+	result, alloc := strings.replace_all(snake, "_", " ")
+	if alloc {
+		delete(snake)
+	}
+
+	return result
 }
 
 vm_read_constant :: proc(vm: ^VM) -> Value {

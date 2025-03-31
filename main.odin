@@ -10,17 +10,22 @@ DEBUG_PRINT_CODE :: #config(DEBUG_PRINT_CODE, false)
 DEBUG_VERBOSE :: #config(DEBUG_VERBOSE, false)
 
 main :: proc() {
+	os.exit(run())
+}
+
+// hack(mo): we do this to make sure print_memory_issues is called even if we exit abnormally
+run :: proc() -> int {
 	tracking_allocator, a := wrap_into_tracking_allocator(context.allocator)
 	context.allocator = a
 	defer print_memory_issues(tracking_allocator)
 
 	if len(os.args) == 1 {
-		repl()
+		return repl()
 	} else if len(os.args) == 2 {
-		run_file(os.args[1])
+		return run_file(os.args[1])
 	} else {
 		fmt.printfln("Usage: olox [path]")
-		os.exit(64)
+		return 64
 	}
 }
 
@@ -46,11 +51,11 @@ print_memory_issues :: proc(a: ^mem.Tracking_Allocator) {
 	}
 }
 
-run_file :: proc(path: string) {
+run_file :: proc(path: string) -> int {
 	source, err := os.read_entire_file_from_filename_or_err(path)
 	if err != nil {
 		fmt.printfln("Could not read file '%s': %v", path, err)
-		os.exit(74)
+		return 74
 	}
 
 	vm := vm_init()
@@ -58,14 +63,16 @@ run_file :: proc(path: string) {
 	result := vm_interpret(&vm, string(source))
 
 	if result == InterpretResult.CompileError {
-		os.exit(65)
+		return 65
 	}
 	if result == InterpretResult.RuntimeError {
-		os.exit(70)
+		return 70
 	}
+
+	return 0
 }
 
-repl :: proc() {
+repl :: proc() -> int {
 	vm := vm_init()
 	defer vm_free(&vm)
 
@@ -91,10 +98,14 @@ repl :: proc() {
 
 		result := vm_interpret(&vm, line)
 		if result == InterpretResult.CompileError {
-			os.exit(65)
+			return 65
 		}
+
 		if result == InterpretResult.RuntimeError {
-			os.exit(70)
+			return 70
 		}
+
 	}
+
+	return 0
 }
